@@ -8,9 +8,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
-            --primary-blue: #0056b3; /* Bleu secteur énergie */
+            --primary-blue: #0056b3; 
             --accent-pink: #ED51C2;
-            --bg-white: #f0f4f8; /* Gris clair prompt A */
+            --bg-white: #f0f4f8; 
             --text-dark: #000442;
             --text-muted: #64748b;
             --gray-light: #FFFFFF;
@@ -164,7 +164,7 @@
         </div>
 
         <a id="calendly-link" href="#" class="btn-main">Réservons 30 min pour votre situation précise (sans engagement)</a>
-        <button class="btn-secondary" onclick="generatePDF()">Télécharger le compte-rendu PDF</button>
+        <button class="btn-secondary" onclick="generatePDF()">Télécharger le compte-rendu PDF Premium</button>
     </div>
 </div>
 
@@ -292,28 +292,128 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const scoreVal = document.getElementById('score-val').innerText;
+        const scoreMsg = document.getElementById('score-msg').innerText;
         const dateStr = new Date().toLocaleDateString('fr-BE');
+        const userNote = document.getElementById('teaser-text').value;
 
-        doc.setTextColor(0, 86, 179);
-        doc.setFontSize(18);
-        doc.text("RAPPORT : AUDIT PÉNURIE TALENTS", 20, 30);
+        // Configuration Couleurs Homieux Media
+        const primaryBlue = [0, 86, 179];
+        const accentPink = [237, 81, 194];
+        const darkBlue = [0, 4, 66];
+        const lightBg = [248, 250, 252];
+
+        // --- EN-TETE ---
+        doc.setFillColor(...primaryBlue);
+        doc.rect(0, 0, 210, 45, 'F');
         
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.text("RAPPORT D'AUDIT STRATÉGIQUE", 20, 25);
         doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Généré le ${dateStr} - Score : ${scoreVal}/10`, 20, 40);
-
-        doc.setTextColor(0, 0, 0);
-        doc.text("Recommandations prioritaires :", 20, 60);
+        doc.setFont("helvetica", "normal");
+        doc.text("Pénurie de Talents & Compétences GTB/Legacy", 20, 33);
         
-        let listItems = document.querySelectorAll('#board-list li');
-        let y = 70;
-        listItems.forEach(li => {
-            let text = doc.splitTextToSize("- " + li.innerText, 170);
-            doc.text(text, 20, y);
-            y += 15;
+        // --- BLOC SCORE ---
+        doc.setFillColor(...lightBg);
+        doc.roundedRect(15, 55, 180, 40, 3, 3, 'F');
+        
+        doc.setTextColor(...primaryBlue);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("VOTRE SCORE DE RISQUE :", 25, 70);
+        
+        // Couleur dynamique du score
+        let scoreColor = parseInt(scoreVal) > 6 ? [239, 68, 68] : (parseInt(scoreVal) >= 4 ? [245, 158, 11] : [34, 197, 94]);
+        doc.setTextColor(...scoreColor);
+        doc.setFontSize(36);
+        doc.text(`${scoreVal}/10`, 25, 85);
+        
+        doc.setFontSize(14);
+        doc.text(scoreMsg.toUpperCase(), 80, 85);
+
+        // --- SECTION : RÉPONSES DÉTAILLÉES ---
+        let y = 110;
+        doc.setTextColor(...darkBlue);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Détail de l'évaluation", 20, y);
+        y += 8;
+
+        doc.setDrawColor(...primaryBlue);
+        doc.setLineWidth(0.5);
+        doc.line(20, y, 190, y);
+        y += 10;
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        
+        questions.forEach((item, index) => {
+            const answer = answers[index] ? "OUI" : "NON";
+            const qText = doc.splitTextToSize(`${index + 1}. ${item.q}`, 140);
+            
+            // Background zebra pour lisibilité
+            if(index % 2 === 0) {
+                doc.setFillColor(252, 252, 252);
+                doc.rect(15, y - 4, 180, (qText.length * 5) + 4, 'F');
+            }
+
+            doc.setTextColor(...darkBlue);
+            doc.text(qText, 20, y);
+            
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(answers[index] ? 200 : 100, 50, 50); // Rouge si OUI (risque)
+            doc.text(answer, 175, y);
+            
+            doc.setFont("helvetica", "normal");
+            y += (qText.length * 5) + 3;
+            
+            // Protection dépassement page
+            if (y > 270) { doc.addPage(); y = 20; }
         });
 
-        doc.save(`Diagnostic_Talents_Homieux_${dateStr}.pdf`);
+        // --- SECTION : RECOMMANDATIONS ---
+        y += 10;
+        if (y > 230) { doc.addPage(); y = 20; }
+        
+        doc.setTextColor(...accentPink);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Recommandations Prioritaires du Board", 20, y);
+        y += 10;
+
+        let listItems = document.querySelectorAll('#board-list li');
+        listItems.forEach(li => {
+            doc.setFillColor(...lightBg);
+            const recText = doc.splitTextToSize(li.innerText, 160);
+            doc.roundedRect(18, y - 4, 174, (recText.length * 5) + 4, 2, 2, 'F');
+            
+            doc.setTextColor(...primaryBlue);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(recText, 25, y);
+            y += (recText.length * 5) + 6;
+        });
+
+        // --- NOTE UTILISATEUR & CTA ---
+        if(userNote) {
+            y += 5;
+            doc.setTextColor(...darkBlue);
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(9);
+            doc.text("Votre priorité notée : " + userNote, 20, y);
+            y += 10;
+        }
+
+        // Pied de page
+        doc.setFillColor(...darkBlue);
+        doc.rect(0, 280, 210, 17, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.text(`Généré le ${dateStr} pour Homieux Media — Expert en recrutement technique B2B`, 20, 290);
+        doc.text("homieuxmedia.com", 170, 290);
+
+        doc.save(`Audit_Homieux_Media_${dateStr.replace(/\//g,'-')}.pdf`);
     }
 </script>
 
